@@ -1,9 +1,9 @@
 import math
 import json
 import re
-import urllib2
 import sys
 import urllib
+from opener import Opener
 
 def substr(string, start, length):
     return string[start:start+length]
@@ -46,21 +46,11 @@ def decodeLocation(loc):
     v9 = v9.replace("+", " ")
     return v9
 
-
-def getOpener():
-    opener = urllib2.build_opener()
-    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-    return opener
-
-opener = getOpener()
-
 def getSong(song_id):
     url = xiami_url["single_song"] % song_id
-    content = getContent(opener, url)
+    content = Opener.Instance().open(url)
     encryptedLoc = getEncryptedLocation(content)
     return [decodeLocation(loc) for loc in encryptedLoc]
-
-def getContent(opener, url): return opener.open(url).read()
 
 def getEncryptedLocation(content):
     return solveRegex(content, regexes["xiami"])
