@@ -84,7 +84,6 @@ def dispatch_url(url, patterns):
     for (r, fn) in patterns:
         m = r.match(url)
         if m:
-            print m.groupdict()
             return fn(m.group(1))
     raise Exception("unmatchable url")
 
