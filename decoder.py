@@ -1,10 +1,13 @@
 import math
+import json
 import re
 import urllib2
 import sys
 import urllib
+
 def substr(string, start, length):
     return string[start:start+length]
+
 def decodeLocation(loc):
     v10 = 0
     v2 = int(loc[0])
@@ -43,20 +46,50 @@ def decodeLocation(loc):
     v9 = v9.replace("+", " ")
     return v9
 
-def getRegex(song_id, opener, regex):
-    url = "http://www.xiami.com/song/playlist/id/%s/object_name/default/object_id/0" % song_id
-    regex = re.compile(regex, re.MULTILINE|re.DOTALL)
-    content = opener.open(url).read()
-    return  regex.match(content).group(1)
 
 def getOpener():
     opener = urllib2.build_opener()
     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
     return opener
 
+opener = getOpener()
+
+def getSong(song_id):
+    url = xiami_url["single_song"] % song_id
+    content = getContent(opener, url)
+    encryptedLoc = getEncryptedLocation(content)
+    return [decodeLocation(loc) for loc in encryptedLoc]
+
+def getContent(opener, url): return opener.open(url).read()
+
+def getEncryptedLocation(content):
+    return solveRegex(content, regexes["xiami"])
+
+def solveRegex(content, pattern):
+    return re.findall(pattern, content, re.MULTILINE|re.DOTALL)
+
+regexes = {
+    "xiami": r"<location\>(.*?)\</location\>"
+    }
+
+patterns = [
+    (r".*xiami.com/song/(?P<song_id>.*)", getSong),
+    ]
+
+xiami_url = {
+    "single_song": "http://www.xiami.com/song/playlist/id/%s/object_name/default/object_id/0"
+    }
+
+def dispatch_url(url, patterns):
+    for (r, fn) in patterns:
+        m = r.match(url)
+        if m:
+            print m.groupdict()
+            return fn(m.group(1))
+    raise Exception("unmatchable url")
+
 if __name__ == "__main__":
-    opener = getOpener()
-    loc = getRegex(sys.argv[1], opener, r".*\<location\>(.*?)\</location\>.*")
-    name = getRegex(sys.argv[1], opener, r".*title\>\<\!\[CDATA\[(.*?)\]\].*")
-    print name
-    print decodeLocation(loc)
+    url = sys.argv[1]
+    compiled = map(lambda (reg, fn): (re.compile(reg), fn), patterns)
+    result = dispatch_url(url, compiled)
+    print json.dumps(result)
