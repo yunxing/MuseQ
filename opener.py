@@ -23,6 +23,7 @@ class Opener(object):
         with open(path, "wb") as out:
             for data in iter((lambda:f.read(BUFFER_SIZE)),''):
                 out.write(data)
+                out.flush()
                 downloaded += len(data)
                 fn_progress and fn_progress(downloaded, total)
         fn_finished and fn_finished()
