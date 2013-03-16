@@ -19,7 +19,9 @@ class Opener(object):
         total = int(f.info().getheader("Content-Length", "0"))
         BUFFER_SIZE = total / 100
         downloaded = 0
-        for data in iter((lambda:f.read(BUFFER_SIZE)),''):
-            downloaded += len(data)
-            fn_progress and fn_progress(downloaded, total)
+        with open(path, "wb") as f:
+            for data in iter((lambda:f.read(BUFFER_SIZE)),''):
+                f.write(f)
+                downloaded += len(data)
+                fn_progress and fn_progress(downloaded, total)
         fn_finished and fn_finished()
