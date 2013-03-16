@@ -14,7 +14,7 @@ class Opener(object):
     def open(self, url):
         return self.opener.open(url).read()
 
-    def urlretrive(self, url, path, fn_progress, fn_finished):
+    def urlretrive(self, url, path, fn_progress=None, fn_finished=None):
         f = self.opener.open(url)
         total = int(f.info().getheader("Content-Length", "0"))
         BUFFER_SIZE = total / 100

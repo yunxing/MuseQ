@@ -47,3 +47,6 @@ class _const:
 
 import sys
 sys.modules["const"]=_const()
+
+def get_file_suffix(url):
+    return url.split(".")[-1]
