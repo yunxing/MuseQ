@@ -3,6 +3,7 @@ import json
 import re
 import sys
 import urllib
+from itertools import repeat
 from opener import Opener
 
 def substr(string, start, length):
@@ -46,31 +47,50 @@ def decodeLocation(loc):
     v9 = v9.replace("+", " ")
     return v9
 
-def getSong(song_id):
+def xiami_get_single_song(song_id):
     url = xiami_url["single_song"] % song_id
+    loc, title = xiami_decode(url)
+    return zip(loc, title, repeat(False))
+
+def xiami_get_album(album_id):
+    url = xiami_url["album"] % album_id
+    loc, title = xiami_decode(url)
+    return zip(loc, title, repeat(False))
+
+def xiami_decode(url):
     content = Opener.Instance().open(url)
     encryptedLoc = getEncryptedLocation(content)
-    return [decodeLocation(loc) for loc in encryptedLoc]
+    titles = getTitle(content)
+    decodedLoc = [decodeLocation(loc) for loc in encryptedLoc]
+    return decodedLoc, titles
 
 def getEncryptedLocation(content):
-    return solveRegex(content, regexes["xiami"])
+    return solveRegex(content, regexes["xiami_location"])
+
+def getTitle(content):
+    return solveRegex(content, regexes["xiami_title"])
 
 def solveRegex(content, pattern):
     return re.findall(pattern, content, re.MULTILINE|re.DOTALL)
 
 regexes = {
-    "xiami": r"<location\>(.*?)\</location\>"
+    "xiami_location": r"\<location\>(.*?)\</location\>",
+    "xiami_title": r"<title><\!\[CDATA\[(.*?)\]\]></title>"
     }
 
-patterns = [
-    (r".*xiami.com/song/(?P<song_id>.*)", getSong),
+raw_patterns = [
+    (r".*xiami.com/song/(?P<song_id>.*)", xiami_get_single_song),
+    (r".*xiami.com/album/(?P<album_id>.*)", xiami_get_album)
     ]
 
+patterns = map(lambda (reg, fn): (re.compile(reg), fn), raw_patterns)
+
 xiami_url = {
-    "single_song": "http://www.xiami.com/song/playlist/id/%s/object_name/default/object_id/0"
+    "single_song": "http://www.xiami.com/song/playlist/id/%s/object_name/default/object_id/0",
+    "album": "http://www.xiami.com/song/playlist/id/%s/type/1",
     }
 
-def dispatch_url(url, patterns):
+def dispatch_url(url):
     for (r, fn) in patterns:
         m = r.match(url)
         if m:
@@ -79,6 +99,5 @@ def dispatch_url(url, patterns):
 
 if __name__ == "__main__":
     url = sys.argv[1]
-    compiled = map(lambda (reg, fn): (re.compile(reg), fn), patterns)
-    result = dispatch_url(url, compiled)
+    result = dispatch_url(url)
     print json.dumps(result)

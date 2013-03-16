@@ -1,4 +1,4 @@
-class Singleton:
+class Singleton(object):
     """
     A non-thread-safe helper class to ease implementing singletons.
     This should be used as a decorator -- not a metaclass -- to the
@@ -36,3 +36,14 @@ class Singleton:
 
     def __instancecheck__(self, inst):
         return isinstance(inst, self._decorated)
+
+# Put in const.py...:
+class _const:
+    class ConstError(TypeError): pass
+    def __setattr__(self,name,value):
+        if self.__dict__.has_key(name):
+            raise self.ConstError, "Can't rebind const(%s)"%name
+        self.__dict__[name]=value
+
+import sys
+sys.modules["const"]=_const()
