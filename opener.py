@@ -18,10 +18,11 @@ class Opener(object):
         f = self.opener.open(url)
         total = int(f.info().getheader("Content-Length", "0"))
         BUFFER_SIZE = total / 100
+        if BUFFER_SIZE == 0: BUFFER_SIZE = 1024
         downloaded = 0
-        with open(path, "wb") as f:
+        with open(path, "wb") as out:
             for data in iter((lambda:f.read(BUFFER_SIZE)),''):
-                f.write(f)
+                out.write(data)
                 downloaded += len(data)
                 fn_progress and fn_progress(downloaded, total)
         fn_finished and fn_finished()
