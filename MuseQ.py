@@ -4,11 +4,15 @@ from MusicDB import MusicDB
 from dispatcher import dispatch_url
 #from functools import partial
 import mpd
+import time
+import logging
 import os
 import core
 import const
 import config
 import sys
+
+logging.basicConfig(level=logging.DEBUG)
 
 class SongInProgress(object):
     def __init__(self, url, file_path, file_name, fn_add):
@@ -23,9 +27,10 @@ class SongInProgress(object):
                                      self.check_and_add)
 
     def check_and_add(self, download, total):
-        if download > total * 0.05 and not self.added:
+        if self.added: return
+        if download > total * 0.5 or download > 1024 * 1024 and download > total * 0.05:
             self.added = True
-            self.fn_add(self.file_name)
+            self.fn_add(self.file_name, self.file_path)
 
 class MuseQ(object):
     def __init__(self, path, db_name, fn_progress=None, fn_complete=None):
@@ -36,9 +41,10 @@ class MuseQ(object):
         self.mpc = mpd.MPDClient(use_unicode=True)
         self.mpc.connect("localhost", 6600)
 
-    def add_and_play(self, name):
+    def add_and_play(self, name, path):
         if not self.mpc.find("any", name):
             self.mpc.update()
+        while not self.mpc.find("any", name): time.sleep(0.5)
         self.mpc.add(name)
         self.mpc.play()
 
@@ -50,7 +56,7 @@ class MuseQ(object):
             song = SongInProgress(url, file_path, file_name, self.add_and_play)
             song.start()
         else:
-            self.add_and_play(file_name)
+            self.add_and_play(file_name, file_path)
 
     def play_streaming(self, url, name):
         raise Exception("not implemented")
