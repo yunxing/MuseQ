@@ -47,7 +47,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         logging.info("got message %r", message)
         parsed = tornado.escape.json_decode(message)
-        SocketHandler.machine.play(parsed["url"])
+        if parsed["command"] == "addurl":
+            SocketHandler.machine.play(parsed["url"])
+        elif parsed["command"] == "next":
+            SocketHandler.machine.next()
 
 def main():
     tornado.options.parse_command_line()

@@ -37,7 +37,6 @@ class Singleton(object):
     def __instancecheck__(self, inst):
         return isinstance(inst, self._decorated)
 
-# Put in const.py...:
 class _const:
     class ConstError(TypeError): pass
     def __setattr__(self,name,value):
@@ -45,8 +44,19 @@ class _const:
             raise self.ConstError, "Can't rebind const(%s)"%name
         self.__dict__[name]=value
 
+import threading
+def run_in_thread(fn):
+    def run(*k, **kw):
+        t = threading.Thread(target=fn, args=k, kwargs=kw)
+        t.start()
+    return run
+
 import sys
 sys.modules["const"]=_const()
 
 def get_file_suffix(url):
     return url.split(".")[-1]
+
+from threading import Lock, Thread
+from random import choice
+from mpd import MPDClient

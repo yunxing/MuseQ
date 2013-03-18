@@ -16,35 +16,23 @@ $(document).ready(function() {
     if (!window.console) window.console = {};
     if (!window.console.log) window.console.log = function() {};
 
-    $("#messageform").live("submit", function() {
-        newMessage($(this));
+    $("#addurl").click(function(){
+        newMessage({"command":"addurl", "url":$("#url").val()});
         return false;
     });
-    $("#messageform").live("keypress", function(e) {
-        if (e.keyCode == 13) {
-            newMessage($(this));
-            return false;
-        }
+
+    $("#next").click(function(){
+        newMessage({"command":"next"});
+        return false;
     });
-    $("#message").select();
+
+    $("#url").select();
     updater.start();
 });
 
-function newMessage(form) {
-    var message = form.formToDict();
+function newMessage(message) {
     updater.socket.send(JSON.stringify(message));
-    form.find("input[type=text]").val("").select();
 }
-
-jQuery.fn.formToDict = function() {
-    var fields = this.serializeArray();
-    var json = {}
-    for (var i = 0; i < fields.length; i++) {
-        json[fields[i].name] = fields[i].value;
-    }
-    if (json.next) delete json.next;
-    return json;
-};
 
 var updater = {
     socket: null,
