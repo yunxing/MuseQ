@@ -56,7 +56,3 @@ sys.modules["const"]=_const()
 
 def get_file_suffix(url):
     return url.split(".")[-1]
-
-from threading import Lock, Thread
-from random import choice
-from mpd import MPDClient
