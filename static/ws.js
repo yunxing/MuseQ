@@ -21,8 +21,19 @@ $(document).ready(function() {
         return false;
     });
 
+    $("#url").keypress(function(event) {
+        if ( event.which == 13 ) {
+            newMessage({"command":"addurl", "url":$("#url").val()});
+        }
+    });
+
     $("#next").click(function(){
         newMessage({"command":"next"});
+        return false;
+    });
+
+    $("#stop").click(function(){
+        newMessage({"command":"stop"});
         return false;
     });
 
@@ -45,7 +56,9 @@ var updater = {
             updater.socket = new MozWebSocket(url);
         }
 	updater.socket.onmessage = function(event) {
-
+            msg = JSON.parse(event.data)
+            console.log(msg)
+            $("#playlist").html(msg.html)
 	}
     },
 };

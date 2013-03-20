@@ -11,149 +11,151 @@ import core
 import const
 import config
 import sys
+from threading import Event
+from wait_signaler import WaitSignaler
 
 class Song(object):
+    def __init__(self):
+        self.started = False
+        self.is_current = False
+        self.ready = True
+
     def get_name(self):
         return self.file_name
 
-    def is_complete(self):
-        return True
-
     def stop(self):
-        pass
+        logging.debug("stopping %s"%self.file_name)
+        self.is_current = False
+        self.started = False
 
     def get_ready(self):
         pass
 
-class SongOnDisk(Song):
-    def __init__(self, file_name, fn_add):
-        self.file_name = file_name
-        self.fn_add = fn_add
+    def play(self, player):
+        if not self.ready: return
+        if self.is_current and not self.started:
+            self.started = True
+        player.clear()
+        if not player.find("any", self.file_name):
+            player.update()
+        while not player.find("any", self.file_name): time.sleep(0.5)
+        assert player.status()["state"] == "stop"
+        player.add(self.get_name())
+        player.play()
+        assert player.status()["state"] != "stop"
+        while player.status()["state"] != "stop":
+            player.idle("player")
 
-    def start(self):
-        self.fn_add(self.file_name)
+class SongOnDisk(Song):
+    def __init__(self, file_name):
+        Song.__init__(self)
+        self.file_name = file_name
+
+    def start(self, player):
+        self.play(player)
 
 class SongInProgress(Song):
-    def __init__(self, url, file_path, file_name, fn_add):
+    def __init__(self, url, file_path, file_name):
+        Song.__init__(self)
         self.file_path = file_path
         self.file_name = file_name
         self.url = url
-        self.fn_add = fn_add
         self.ready = False
-        self.complete = False
-        self.download_started = False
-        self.should_start = False
-        self.started = False
+        self.event_wait = Event()
 
     def stop(self):
-        logging.debug("stopping %s"%self.file_name)
-        self.should_start = False
+        super(SongInProgress, self).stop()
+        self.event_wait.set()
 
-    def is_complete(self): return self.complete
-
-    def complete_download(self) : self.complete = True
-
+    @core.run_in_thread
     def get_ready(self):
         if not self.download_started:
             self.download_started = True
-            Opener.Instance().urlretrive(self.url, self.file_path,
-                                         self.check_and_add)
+            progress = Opener.Instance().urlretrive(self.url, self.file_path)
+            for (download, total) in progress:
+                self.check_and_play(download, total)
 
-    def start(self):
-        logging.info("staring play %s", self.file_name)
-        self.should_start = True
+    def start(self, player):
+        logging.info("starting play %s",
+                     self.file_name)
+        self.is_current = True
         self.get_ready()
-        if self.ready and not self.started:
-            self.started = True
-            self.fn_add(self.file_name)
+        if not self.ready:
+            self.event_wait.clear()
+        self.play(player)
 
-    def check_and_add(self, download, total):
-        if self.ready: return
+    def check_and_play(self, download, total):
         if download > total * 0.6 or total > 1024 * 1024 and download > 500 * 1024:
             self.ready = True
-            if self.should_start and not self.started:
-                logging.debug("caching complete: %s"%self.file_name)
-                self.started = True
-                self.fn_add(self.file_name)
+            self.event_wait.set()
+            logging.debug("caching complete: %s"%self.file_name)
+            self.play(player)
 
 class Playlist(object):
     def __init__(self):
-        self.client_status = mpd.MPDClient(use_unicode=True)
-        self.client_status.connect("localhost", 6600)
+        self.player = mpd.MPDClient(use_unicode=True)
+        self.player.connect("localhost", 6600)
 
         self.client_action = mpd.MPDClient(use_unicode=True)
         self.client_action.connect("localhost", 6600)
+        self.client_action.clear()
 
-        self.check_start()
         #May or may not be thread safe, use it for prototype now
         self.playlist = []
-        self.repeat = False
         self.current = 0
-        self.is_playing = False
+        self.is_playing = Event()
+        self.observers = set([])
+
+    def get_current_song(self):
+        return self.playlist[self.current]
+
+    def playlist_changed(self):
+        for fn in self.observers:
+            fn()
+
+    def change_current(self, new_current):
+        self.current = new_current
+        if self.playlist:
+            self.current = self.current % len(self.playlist)
+        else:
+            self.current = 0
 
     @core.run_in_thread
-    def check_start(self):
+    def start(self):
         while True:
-            self.client_status.idle("player")
-            if self.client_status.status()["state"] == "stop":
-                self.play_next_song()
+            self.is_playing.wait()
+            current = self.current
+            song = self.get_current_song()
+            song.start(self.player)
+            if current == self.current:
+                self.change_current(self.current + 1)
+            self.playlist_changed()
 
-    def play_next_song(self):
-        self.is_playing = False
-        self.current += 1
-        self.play()
-
-    def play(self):
-        if self.is_playing: return
-        try:
-            next_song = self.playlist[self.current]
-        except IndexError:
-            self.is_playing = False
-            return
-        self.is_playing = True
-        self.play_threading(next_song)
-    @core.run_in_thread
-    def play_threading(self, song):
-        song.start()
-
-    def add_and_play(self, name):
-        try:
-            self.client_action.clear()
-            if not self.client_action.find("any", name):
-                self.client_action.update()
-            while not self.client_action.find("any", name): time.sleep(0.5)
-            assert self.client_action.status()["state"] == "stop"
-            self.client_action.add(name)
-            self.client_action.play()
-        except Exception as e:
-            logging.warning("reconnecting %s!"%e)
-            self.client_action.connect("localhost", 6600)
-            self.add_and_play(name)
-
-    def next_song(self):
-        if not self.is_playing:
-            return
-        self.playlist[self.current].stop()
-        try:
-            if self.client_action.status()["state"] != "stop":
-                self.client_action.stop()
-            else:
-                logging.debug(
-                    "current song %s is not playing, skip to next"%self.playlist[self.current].get_name())
-                self.play_next_song()
-        except Exception as e:
-            logging.warning("reconnecting %s!"%e)
-            self.client_action.connect("localhost", 6600)
-            self.next_song()
+    def to_list(self):
+        return [{"id":i,
+                 "name":song.get_name(),
+                 "playing":i==self.current}
+                for (i, song) in enumerate(self.playlist)
+                ]
 
     def add_song(self, url, file_path, file_name):
         if not os.path.isfile(file_path):
-            song = SongInProgress(url, file_path, file_name,
-                                  self.add_and_play)
+            song = SongInProgress(url, file_path, file_name)
         else:
-            song = SongOnDisk(file_name, self.add_and_play)
+            song = SongOnDisk(file_name)
         self.playlist.append(song)
-        self.play()
+        self.is_playing.set()
+
+    def stop(self):
+        self.playlist = []
+        self.playlist_changed()
+        self.is_playing.clear()
+        self.client_action.stop()
+        self.curren = 0
+
+    def next_song(self):
+        self.get_current_song().stop()
+        self.client_action.stop()
 
 class MuseQ(object):
     def __init__(self, path, db_name, fn_progress=None, fn_complete=None):
@@ -162,6 +164,18 @@ class MuseQ(object):
         self.fn_progress = fn_progress
         self.fn_complete = fn_complete
         self.playlist = Playlist()
+
+    def get_playlist(self):
+        return self.playlist.to_list()
+
+    def start(self):
+        self.playlist.start()
+
+    def register_updates(self, fn):
+        self.playlist.observers.add(fn)
+
+    def deregister_updates(self, fn):
+        self.playlist.observers.remove(fn)
 
     def play_single(self, url, name):
         file_name = name + "." + core.get_file_suffix(url)
@@ -175,6 +189,9 @@ class MuseQ(object):
     def next(self):
         self.playlist.next_song()
 
+    def stop(self):
+        self.playlist.stop()
+
     def play(self, url):
         decoded_urls = dispatch_url(url)
         print decoded_urls
@@ -183,6 +200,9 @@ class MuseQ(object):
                 self.play_streaming(decoded_url, name)
             else:
                 self.play_single(decoded_url, name)
+        self.playlist.playlist_changed()
+
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

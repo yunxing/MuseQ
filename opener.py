@@ -1,6 +1,6 @@
 import urllib2
 import logging
-from core import *
+from core import run_in_thread, Singleton
 
 opener = None
 
@@ -15,8 +15,7 @@ class Opener(object):
     def open(self, url):
         return self.opener.open(url).read()
 
-    @run_in_thread
-    def urlretrive(self, url, path, fn_progress=None, fn_finished=None):
+    def urlretrive(self, url, path):
         logging.info("started downloading %s " % url)
         f = self.opener.open(url)
         total = int(f.info().getheader("Content-Length", "0"))
@@ -27,6 +26,5 @@ class Opener(object):
             for data in iter((lambda:f.read(BUFFER_SIZE)),''):
                 out.write(data)
                 downloaded += len(data)
-                fn_progress and fn_progress(downloaded, total)
+                yield (download, total)
         logging.info("finished downloading %s" % url)
-        fn_finished and fn_finished()

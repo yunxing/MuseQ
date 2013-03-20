@@ -22,8 +22,8 @@ class Application(tornado.web.Application):
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
-            xsrf_cookies=True,
-        )
+            debug=True,
+            )
         tornado.web.Application.__init__(self, handlers, **settings)
 
 class MainHandler(tornado.web.RequestHandler):
@@ -31,18 +31,29 @@ class MainHandler(tornado.web.RequestHandler):
         self.render("index.html")
 
 class SocketHandler(tornado.websocket.WebSocketHandler):
-    waiters = set()
     machine = MuseQ(const.PATH, const.DB_NAME)
+    machine.start()
+
+    def notify_playlist(self):
+        playlist = SocketHandler.machine.get_playlist()
+        msg = {}
+        msg["html"] = ""
+        for song in playlist:
+            msg["html"] += self.render_string("song.html", **song)
+        try:
+            self.write_message(msg)
+        except:
+            logging.error("Error sending message", exc_info=True)
 
     def allow_draft76(self):
-        # for iOS 5.0 Safari
         return True
 
     def open(self):
-        SocketHandler.waiters.add(self)
+        SocketHandler.machine.register_updates(self.notify_playlist)
+        self.notify_playlist()
 
     def on_close(self):
-        SocketHandler.waiters.remove(self)
+        SocketHandler.machine.deregister_updates(self.notify_playlist)
 
     def on_message(self, message):
         logging.info("got message %r", message)
@@ -51,6 +62,9 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             SocketHandler.machine.play(parsed["url"])
         elif parsed["command"] == "next":
             SocketHandler.machine.next()
+        elif parsed["command"] == "stop":
+            SocketHandler.machine.stop()
+
 
 def main():
     tornado.options.parse_command_line()
