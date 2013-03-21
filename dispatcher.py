@@ -49,33 +49,53 @@ def decodeLocation(loc):
 
 def xiami_get_single_song(song_id):
     url = xiami_url["single_song"] % song_id
-    loc, title = xiami_decode(url)
-    return zip(loc, title, repeat(False))
+    return xiami_zip(url)
+
+def xiami_zip(url):
+    loc, id, title, album, artist = \
+    xiami_decode(url)
+    return zip(loc, id, title,
+               album, artist, repeat(False))
 
 def xiami_get_album(album_id):
     url = xiami_url["album"] % album_id
-    loc, title = xiami_decode(url)
-    return zip(loc, title, repeat(False))
+    return xiami_zip(url)
 
 def xiami_decode(url):
     content = Opener.Instance().open(url)
     encryptedLoc = getEncryptedLocation(content)
     titles = getTitle(content)
+    ids = getId(content)
+    albums = getAlbum(content)
+    artists = getArtist(content)
     decodedLoc = [decodeLocation(loc) for loc in encryptedLoc]
-    return decodedLoc, titles
+    return decodedLoc, ids, titles, albums, artists
 
 def getEncryptedLocation(content):
     return solveRegex(content, regexes["xiami_location"])
+
+def getId(content):
+    return solveRegex(content, regexes["xiami_id"])
+
+def getAlbum(content):
+    return solveRegex(content, regexes["xiami_album"])
+
+def getArtist(content):
+    return solveRegex(content, regexes["xiami_artist"])
 
 def getTitle(content):
     return solveRegex(content, regexes["xiami_title"])
 
 def solveRegex(content, pattern):
-    return re.findall(pattern, content, re.MULTILINE|re.DOTALL)
+    v = re.findall(pattern, content, re.MULTILINE|re.DOTALL|re.U)
+    return map(lambda x:x.decode("utf-8"), v)
 
 regexes = {
+    "xiami_id": r"\<song_id\>(.*?)\</song_id\>",
     "xiami_location": r"\<location\>(.*?)\</location\>",
-    "xiami_title": r"<title><\!\[CDATA\[(.*?)\]\]></title>"
+    "xiami_title": r"<title><\!\[CDATA\[(.*?)\]\]></title>",
+    "xiami_album": r"<album_name><\!\[CDATA\[(.*?)\]\]></album_name>",
+    "xiami_artist": r"<artist><\!\[CDATA\[(.*?)\]\]></artist>",
     }
 
 raw_patterns = [
@@ -100,4 +120,4 @@ def dispatch_url(url):
 if __name__ == "__main__":
     url = sys.argv[1]
     result = dispatch_url(url)
-    print json.dumps(result)
+    print result

@@ -26,5 +26,5 @@ class Opener(object):
             for data in iter((lambda:f.read(BUFFER_SIZE)),''):
                 out.write(data)
                 downloaded += len(data)
-                yield (download, total)
+                yield (downloaded, total)
         logging.info("finished downloading %s" % url)

@@ -4,15 +4,15 @@ from MusicDB import MusicDB
 from dispatcher import dispatch_url
 #from functools import partial
 import mpd
+import eyed3
 import time
 import logging
 import os
-import core
-import const
 import config
+import const
 import sys
 from threading import Event
-from wait_signaler import WaitSignaler
+
 
 class Song(object):
     def __init__(self):
@@ -21,10 +21,10 @@ class Song(object):
         self.ready = True
 
     def get_name(self):
-        return self.file_name
+        return self.title
 
     def stop(self):
-        logging.debug("stopping %s"%self.file_name)
+        logging.debug("stopping %s" % self.file_name)
         self.is_current = False
         self.started = False
 
@@ -32,40 +32,71 @@ class Song(object):
         pass
 
     def play(self, player):
-        if not self.ready: return
+        if not self.ready:
+            return
         if self.is_current and not self.started:
             self.started = True
         player.clear()
         if not player.find("any", self.file_name):
             player.update()
-        while not player.find("any", self.file_name): time.sleep(0.5)
+        while not player.find("any", self.file_name):
+            time.sleep(0.5)
         assert player.status()["state"] == "stop"
-        player.add(self.get_name())
+        player.add(self.file_name)
         player.play()
         assert player.status()["state"] != "stop"
         while player.status()["state"] != "stop":
             player.idle("player")
 
+
 class SongOnDisk(Song):
     def __init__(self, file_name):
         Song.__init__(self)
         self.file_name = file_name
+        self.get_tag()
+
+    def get_tag(self):
+        audiofile = eyed3.load(self.file_path)
+        if audiofile.tag:
+            self.artist = audiofile.tag.artist
+            self.album = audiofile.tag.album
+            self.title = audiofile.tag.title
+        else:
+            self.title = self.file_name
+            self.album = "unknown"
+            self.artist = "unknown"
 
     def start(self, player):
         self.play(player)
 
+
 class SongInProgress(Song):
-    def __init__(self, url, file_path, file_name):
+    def __init__(self, url, file_path, file_name,
+                 title, album, artist):
         Song.__init__(self)
         self.file_path = file_path
         self.file_name = file_name
+        self.title = title
+        self.album = album
+        self.artist = artist
         self.url = url
         self.ready = False
         self.event_wait = Event()
+        self.event_wait.clear()
+        self.download_started = False
 
     def stop(self):
         super(SongInProgress, self).stop()
         self.event_wait.set()
+
+    def write_tag(self):
+        audiofile = eyed3.load(self.file_path)
+        if not audiofile.tag:
+            audiofile.tag = eyed3.id3.tag.Tag()
+            audiofile.tag.artist = self.artist
+            audiofile.tag.album = self.album
+            audiofile.tag.title = self.title
+            audiofile.tag.save(self.file_path)
 
     @core.run_in_thread
     def get_ready(self):
@@ -74,6 +105,8 @@ class SongInProgress(Song):
             progress = Opener.Instance().urlretrive(self.url, self.file_path)
             for (download, total) in progress:
                 self.check_and_play(download, total)
+            logging.debug("download complete: %s" % self.file_name)
+            self.write_tag()
 
     def start(self, player):
         logging.info("starting play %s",
@@ -81,15 +114,18 @@ class SongInProgress(Song):
         self.is_current = True
         self.get_ready()
         if not self.ready:
-            self.event_wait.clear()
+            logging.debug("started waiting...")
+            self.event_wait.wait()
+            logging.debug("finished waiting...")
         self.play(player)
 
     def check_and_play(self, download, total):
-        if download > total * 0.6 or total > 1024 * 1024 and download > 500 * 1024:
+        if not download > total * 0.6 or \
+                total > 1024 * 1024 and download > 500 * 1024:
             self.ready = True
             self.event_wait.set()
-            logging.debug("caching complete: %s"%self.file_name)
-            self.play(player)
+            logging.debug("caching complete: %s" % self.file_name)
+
 
 class Playlist(object):
     def __init__(self):
@@ -132,15 +168,17 @@ class Playlist(object):
             self.playlist_changed()
 
     def to_list(self):
-        return [{"id":i,
-                 "name":song.get_name(),
-                 "playing":i==self.current}
+        return [{"id": i,
+                 "name": song.get_name(),
+                 "playing": i == self.current}
                 for (i, song) in enumerate(self.playlist)
                 ]
 
-    def add_song(self, url, file_path, file_name):
+    def add_song(self, url, file_path, file_name,
+                 title, album, artist):
         if not os.path.isfile(file_path):
-            song = SongInProgress(url, file_path, file_name)
+            song = SongInProgress(url, file_path, file_name, title,
+                                  album, artist)
         else:
             song = SongOnDisk(file_name)
         self.playlist.append(song)
@@ -156,6 +194,7 @@ class Playlist(object):
     def next_song(self):
         self.get_current_song().stop()
         self.client_action.stop()
+
 
 class MuseQ(object):
     def __init__(self, path, db_name, fn_progress=None, fn_complete=None):
@@ -177,11 +216,11 @@ class MuseQ(object):
     def deregister_updates(self, fn):
         self.playlist.observers.remove(fn)
 
-    def play_single(self, url, name):
-        file_name = name + "." + core.get_file_suffix(url)
-        file_name = file_name.replace("/", "\\")
+    def play_single(self, url, id, title, album, artist):
+        file_name = id + "." + core.get_file_suffix(url)
         file_path = self.path + "/" + file_name
-        self.playlist.add_song(url, file_path, file_name)
+        self.playlist.add_song(url, file_path, file_name,
+                               title, album, artist)
 
     def play_streaming(self, url, name):
         raise Exception("not implemented")
@@ -194,15 +233,14 @@ class MuseQ(object):
 
     def play(self, url):
         decoded_urls = dispatch_url(url)
-        print decoded_urls
-        for (decoded_url, name, streaming) in decoded_urls:
+        for (decoded_url, id, title, album, artist,
+             streaming) in decoded_urls:
             if streaming:
                 self.play_streaming(decoded_url, name)
             else:
-                self.play_single(decoded_url, name)
+                self.play_single(decoded_url, id, title,
+                                 album, artist)
         self.playlist.playlist_changed()
-
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
