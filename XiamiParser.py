@@ -1,6 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import urllib2
-from opener import Opener
 import urllib
+from opener import Opener
 from bs4 import BeautifulSoup
 
 url_pattern = "http://www.xiami.com/search?key="
@@ -55,6 +57,7 @@ class XiamiParser(object):
 
 def main():
     name = '十年'
+    print name
     a = XiamiParser(name)
     a.search_all()
 
