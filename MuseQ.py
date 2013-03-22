@@ -212,6 +212,21 @@ class Playlist(object):
         self.get_current_song().stop()
         self.client_action.stop()
 
+    def set_volum(self, vol):
+        if vol >= 100:
+            vol = 100
+        if vol <= 0:
+            vol = 0
+        self.client_action.setvol(vol)
+
+    def volumnup(self):
+        vol = self.client_action.status()["volume"]
+        self.set_volum(int(vol) + 10)
+
+    def volumndown(self):
+        vol = self.client_action.status()["volume"]
+        self.set_volum(int(vol) - 10)
+
 
 class MuseQ(object):
     def __init__(self, path, db_name, fn_progress=None, fn_complete=None):
@@ -247,6 +262,11 @@ class MuseQ(object):
 
     def stop(self):
         self.playlist.stop()
+
+    def volumnup(self):
+        self.playlist.volumnup()
+    def volumndown(self):
+        self.playlist.volumndown()
 
     def play(self, url):
         decoded_urls = dispatch_url(url)

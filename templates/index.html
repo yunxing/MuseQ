@@ -10,6 +10,20 @@
         padding-bottom: 60px;
       }
 
+      body, html {
+      height: 100%;
+      background: -moz-linear-gradient(top,  #2a2a2a,  #0a0a0a);
+      background: -webkit-gradient(linear, 50% top, 70% bottom, from(#444), to(#0a0a0a));
+      }
+
+      table {
+      color: rgb(255, 237, 237);
+      }
+
+      .success {
+          color: rgb(0, 0, 0);
+      }
+
       /* Custom container */
       .container {
         margin: 0 auto;
@@ -87,11 +101,13 @@
   <body>
     <div class="jumbotron">
       <div class="row-fluid form-search">
-          <div class="span9 offset3">
+          <div class="span9 offset2">
           <input id="url" type="text" class="span6 input-large search-query"/>
-          <button id="addurl" type="button" class="btn">Add</button>
-          <button id="next" type="button" class="btn">Qie(Next)</button>
-          <button id="stop" type="button" class="btn">Stop</button>
+          <button id="addurl" type="button" class="btn"><i class="icon-plus"></i></button>
+          <button id="next" type="button" class="btn"><i class="icon-fast-forward"></i></button>
+          <button id="stop" type="button" class="btn"><i class="icon-stop"></i></button>
+          <button id="volumnup" type="button" class="btn"><i class="icon-arrow-up"></i></button>
+          <button id="volumndown" type="button" class="btn"><i class="icon-arrow-down"></i></button>
           </div>
       </div>
 

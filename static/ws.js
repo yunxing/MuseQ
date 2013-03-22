@@ -34,6 +34,16 @@ $(document).ready(function() {
         return false;
     });
 
+    $("#volumnup").click(function(){
+        newMessage({"command":"volumnup"});
+        return false;
+    });
+
+    $("#volumndown").click(function(){
+        newMessage({"command":"volumndown"});
+        return false;
+    });
+
     $("#stop").click(function(){
         newMessage({"command":"stop"});
         return false;

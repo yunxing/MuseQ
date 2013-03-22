@@ -63,6 +63,10 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             SocketHandler.machine.next()
         elif parsed["command"] == "stop":
             SocketHandler.machine.stop()
+        elif parsed["command"] == "volumnup":
+            SocketHandler.machine.volumnup()
+        elif parsed["command"] == "volumndown":
+            SocketHandler.machine.volumndown()
 
 
 def main():
