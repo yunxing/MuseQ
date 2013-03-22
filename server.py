@@ -44,6 +44,16 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         except:
             logging.error("Error sending message", exc_info=True)
 
+    def notify_playstatus(self):
+        status = SocketHandler.machine.get_playstatus()
+        msg = {}
+        msg["command"] = "toggle"
+        msg["arg"] = status
+        try:
+            self.write_message(msg)
+        except:
+            logging.error("Error sending message", exc_info=True)
+
     def allow_draft76(self):
         return True
 
@@ -63,10 +73,12 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             SocketHandler.machine.next()
         elif parsed["command"] == "stop":
             SocketHandler.machine.stop()
-        elif parsed["command"] == "volumnup":
-            SocketHandler.machine.volumnup()
-        elif parsed["command"] == "volumndown":
-            SocketHandler.machine.volumndown()
+        elif parsed["command"] == "volumeup":
+            SocketHandler.machine.volumeup()
+        elif parsed["command"] == "volumedown":
+            SocketHandler.machine.volumedown()
+        elif parsed["command"] == "pause":
+            SocketHandler.machine.pause()
 
 
 def main():

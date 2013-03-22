@@ -219,11 +219,11 @@ class Playlist(object):
             vol = 0
         self.client_action.setvol(vol)
 
-    def volumnup(self):
+    def volumeup(self):
         vol = self.client_action.status()["volume"]
         self.set_volum(int(vol) + 10)
 
-    def volumndown(self):
+    def volumedown(self):
         vol = self.client_action.status()["volume"]
         self.set_volum(int(vol) - 10)
 
@@ -263,10 +263,11 @@ class MuseQ(object):
     def stop(self):
         self.playlist.stop()
 
-    def volumnup(self):
-        self.playlist.volumnup()
-    def volumndown(self):
-        self.playlist.volumndown()
+    def volumeup(self):
+        self.playlist.volumeup()
+
+    def volumedown(self):
+        self.playlist.volumedown()
 
     def play(self, url):
         decoded_urls = dispatch_url(url)
