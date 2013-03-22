@@ -29,6 +29,12 @@ class Song(object):
     def get_artist(self):
         return self.artist
 
+    def __eq__(self, other):
+        return self.file_path == other.file_path
+
+    def get_file_path(self):
+        return self.file_path
+
     def stop(self):
         logging.debug("stopping %s" % self.file_name)
         self.is_current = False
@@ -185,6 +191,8 @@ class Playlist(object):
 
     def add_song(self, url, file_path, file_name,
                  title, album, artist):
+        if len(filter(lambda x:x.file_path == file_path, self.playlist)):
+            return
         if not os.path.isfile(file_path):
             song = SongInProgress(url, file_path, file_name, title,
                                   album, artist)
