@@ -37,9 +37,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     def notify_playlist(self):
         playlist = SocketHandler.machine.get_playlist()
         msg = {}
-        msg["html"] = ""
-        for song in playlist:
-            msg["html"] += self.render_string("song.html", **song)
+        msg["command"] = "update"
+        msg["arg"] = playlist
         try:
             self.write_message(msg)
         except:

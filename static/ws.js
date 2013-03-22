@@ -12,6 +12,8 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
+String.prototype.format = function (){var d=this.toString();if(!arguments.length)return d;var a="string"==typeof arguments[0]?arguments:arguments[0],c;for(c in a)d=d.replace(RegExp("\\{"+c+"\\}","gi"),a[c]);return d};
+
 $(document).ready(function() {
     if (!window.console) window.console = {};
     if (!window.console.log) window.console.log = function() {};
@@ -45,6 +47,31 @@ function newMessage(message) {
     updater.socket.send(JSON.stringify(message));
 }
 
+function update_playlist(playlist) {
+    $("#playlist").html("");
+    playlist.forEach(function(item){
+        class_str = (item.playing)? "class='success'" : "";
+
+        item_str = "<tr {0}> \
+          <td>{1}</td> \
+          <td>{2}</td> \
+          <td>{3}</td> \
+          <td>{4}</td> \
+        </tr>".format(class_str,
+                      item.id,
+                      item.title,
+                      item.artist,
+                      item.album);
+        console.log(item_str);
+        $("#playlist").append(item_str);
+    });
+
+}
+
+var dispathcer = {
+    "update": update_playlist,
+};
+
 var updater = {
     socket: null,
 
@@ -57,8 +84,8 @@ var updater = {
         }
 	updater.socket.onmessage = function(event) {
             msg = JSON.parse(event.data)
-            console.log(msg)
-            $("#playlist").html(msg.html)
+            dispathcer[msg.command](msg.arg)
+
 	}
     },
 };

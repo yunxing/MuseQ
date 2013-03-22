@@ -20,8 +20,14 @@ class Song(object):
         self.is_current = False
         self.ready = True
 
-    def get_name(self):
+    def get_title(self):
         return self.title
+
+    def get_album(self):
+        return self.album
+
+    def get_artist(self):
+        return self.artist
 
     def stop(self):
         logging.debug("stopping %s" % self.file_name)
@@ -50,9 +56,10 @@ class Song(object):
 
 
 class SongOnDisk(Song):
-    def __init__(self, file_name):
+    def __init__(self, file_path, file_name):
         Song.__init__(self)
         self.file_name = file_name
+        self.file_path = file_path
         self.get_tag()
 
     def get_tag(self):
@@ -169,7 +176,9 @@ class Playlist(object):
 
     def to_list(self):
         return [{"id": i,
-                 "name": song.get_name(),
+                 "title": song.get_title(),
+                 "album": song.get_album(),
+                 "artist": song.get_artist(),
                  "playing": i == self.current}
                 for (i, song) in enumerate(self.playlist)
                 ]
@@ -180,7 +189,7 @@ class Playlist(object):
             song = SongInProgress(url, file_path, file_name, title,
                                   album, artist)
         else:
-            song = SongOnDisk(file_name)
+            song = SongOnDisk(file_path, file_name)
         self.playlist.append(song)
         self.is_playing.set()
 
