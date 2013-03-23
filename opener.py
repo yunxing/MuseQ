@@ -19,8 +19,9 @@ class Opener(object):
         logging.info("started downloading %s " % url)
         f = self.opener.open(url)
         total = int(f.info().getheader("Content-Length", "0"))
-        BUFFER_SIZE = total / 10
-        if BUFFER_SIZE == 0: BUFFER_SIZE = 1024
+        BUFFER_SIZE = total / 100
+        if BUFFER_SIZE == 0:
+            BUFFER_SIZE = 1024
         downloaded = 0
         with open(path, "wb", 0) as out:
             for data in iter((lambda:f.read(BUFFER_SIZE)),''):
