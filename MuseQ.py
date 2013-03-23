@@ -19,6 +19,13 @@ class Song(object):
         self.started = False
         self.is_current = False
         self.ready = True
+        self.is_pause = False
+
+    def toggle(self):
+        self.is_pause = not self.is_pause
+
+    def get_is_pause():
+        return self.is_pause
 
     def get_title(self):
         return self.title
@@ -39,6 +46,7 @@ class Song(object):
         logging.debug("stopping %s" % self.file_name)
         self.is_current = False
         self.started = False
+        self.is_pause = False
 
     def get_ready(self):
         pass
@@ -59,7 +67,7 @@ class Song(object):
         assert player.status()["state"] != "stop"
         while player.status()["state"] != "stop":
             player.idle("player")
-
+        logging.debug("finished playing: %s" % self.file_name)
 
 class SongOnDisk(Song):
     def __init__(self, file_path, file_name):
@@ -96,11 +104,21 @@ class SongInProgress(Song):
         self.ready = False
         self.event_wait = Event()
         self.event_wait.clear()
+        self.pause_event = Event()
+        self.pause_event.set()
         self.download_started = False
 
     def stop(self):
         super(SongInProgress, self).stop()
         self.event_wait.set()
+        self.pause_event.set()
+
+    def toggle(self):
+        super(SongInProgress, self).toggle()
+        if self.pause_event.is_set():
+            self.pause_event.clear()
+        else:
+            self.pause_event.set()
 
     def write_tag(self):
         audiofile = eyed3.load(self.file_path)
@@ -130,14 +148,13 @@ class SongInProgress(Song):
             logging.debug("started waiting...")
             self.event_wait.wait()
             logging.debug("finished waiting...")
+        self.pause_event.wait()
         self.play(player)
 
     def check_and_play(self, download, total):
-        if not download > total * 0.6 or \
-                total > 1024 * 1024 and download > 500 * 1024:
+        if download > total * 0.6 or total > 1024 * 1024 and download > 1024 * 1024:
             self.ready = True
             self.event_wait.set()
-            logging.debug("caching complete: %s" % self.file_name)
 
 
 class Playlist(object):
@@ -194,7 +211,10 @@ class Playlist(object):
                 ]
 
     def playstatus(self):
-        return self.client_action.status()["state"]
+        try:
+            return "pause" if self.get_current_song().is_pause else "play"
+        except:
+            return "stop"
 
     def add_song(self, url, file_path, file_name,
                  title, album, artist):
@@ -220,6 +240,7 @@ class Playlist(object):
     def next_song(self):
         self.get_current_song().stop()
         self.client_action.stop()
+        self.playstatus_changed()
 
     def set_volum(self, vol):
         if vol >= 100:
@@ -237,6 +258,11 @@ class Playlist(object):
         self.set_volum(int(vol) - 10)
 
     def toggle(self):
+        try:
+            self.get_current_song().toggle()
+        except IndexError:
+            pass
+
         if self.client_action.status()["state"] == "pause":
             self.client_action.play()
         elif self.client_action.status()["state"] == "play":
