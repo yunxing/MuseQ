@@ -34,7 +34,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
     machine = MuseQ(const.PATH, const.DB_NAME)
     machine.start()
 
-    def notify_playlist(self):
+    def playlist_changed(self):
         playlist = SocketHandler.machine.get_playlist()
         msg = {}
         msg["command"] = "update"
@@ -44,7 +44,7 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         except:
             logging.error("Error sending message", exc_info=True)
 
-    def notify_playstatus(self):
+    def playstatus_changed(self):
         status = SocketHandler.machine.get_playstatus()
         msg = {}
         msg["command"] = "toggle"
@@ -58,11 +58,12 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         return True
 
     def open(self):
-        SocketHandler.machine.register_updates(self.notify_playlist)
-        self.notify_playlist()
+        SocketHandler.machine.register_updates(self)
+        self.playlist_changed()
+        self.playstatus_changed()
 
     def on_close(self):
-        SocketHandler.machine.deregister_updates(self.notify_playlist)
+        SocketHandler.machine.deregister_updates(self)
 
     def on_message(self, message):
         logging.info("got message %r", message)
@@ -77,8 +78,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             SocketHandler.machine.volumeup()
         elif parsed["command"] == "volumedown":
             SocketHandler.machine.volumedown()
-        elif parsed["command"] == "pause":
-            SocketHandler.machine.pause()
+        elif parsed["command"] == "toggle":
+            SocketHandler.machine.toggle()
 
 
 def main():

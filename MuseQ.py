@@ -159,8 +159,12 @@ class Playlist(object):
         return self.playlist[self.current]
 
     def playlist_changed(self):
-        for fn in self.observers:
-            fn()
+        for obj in self.observers:
+            obj.playlist_changed()
+
+    def playstatus_changed(self):
+        for obj in self.observers:
+            obj.playstatus_changed()
 
     def change_current(self, new_current):
         self.current = new_current
@@ -189,6 +193,9 @@ class Playlist(object):
                 for (i, song) in enumerate(self.playlist)
                 ]
 
+    def playstatus(self):
+        return self.client_action.status()["state"]
+
     def add_song(self, url, file_path, file_name,
                  title, album, artist):
         if len(filter(lambda x:x.file_path == file_path, self.playlist)):
@@ -200,6 +207,7 @@ class Playlist(object):
             song = SongOnDisk(file_path, file_name)
         self.playlist.append(song)
         self.is_playing.set()
+        self.playstatus_changed()
 
     def stop(self):
         self.playlist = []
@@ -207,6 +215,7 @@ class Playlist(object):
         self.is_playing.clear()
         self.client_action.stop()
         self.curren = 0
+        self.playstatus_changed()
 
     def next_song(self):
         self.get_current_song().stop()
@@ -227,6 +236,12 @@ class Playlist(object):
         vol = self.client_action.status()["volume"]
         self.set_volum(int(vol) - 10)
 
+    def toggle(self):
+        if self.client_action.status()["state"] == "pause":
+            self.client_action.play()
+        elif self.client_action.status()["state"] == "play":
+            self.client_action.pause()
+        self.playstatus_changed()
 
 class MuseQ(object):
     def __init__(self, path, db_name, fn_progress=None, fn_complete=None):
@@ -239,14 +254,19 @@ class MuseQ(object):
     def get_playlist(self):
         return self.playlist.to_list()
 
+    def get_playstatus(self):
+        return self.playlist.playstatus()
+
     def start(self):
         self.playlist.start()
 
-    def register_updates(self, fn):
-        self.playlist.observers.add(fn)
+    def register_updates(self, obj):
+        self.playlist.observers.add(obj)
+        obj.playlist_changed()
+        obj.playstatus_changed()
 
-    def deregister_updates(self, fn):
-        self.playlist.observers.remove(fn)
+    def deregister_updates(self, obj):
+        self.playlist.observers.remove(obj)
 
     def play_single(self, url, id, title, album, artist):
         file_name = id + "." + core.get_file_suffix(url)
@@ -268,6 +288,9 @@ class MuseQ(object):
 
     def volumedown(self):
         self.playlist.volumedown()
+
+    def toggle(self):
+        self.playlist.toggle()
 
     def play(self, url):
         decoded_urls = dispatch_url(url)

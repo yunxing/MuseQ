@@ -34,6 +34,11 @@ $(document).ready(function() {
         return false;
     });
 
+    $("#toggle").click(function(){
+        newMessage({"command":"toggle"});
+        return false;
+    });
+
     $("#volumeup").click(function(){
         newMessage({"command":"volumeup"});
         return false;
@@ -76,10 +81,19 @@ function update_playlist(playlist) {
         $("#playlist").append(item_str);
     });
 
-}
+};
+
+function update_playstatus(status) {
+    if (status == "play"){
+        $("#toggle-icon").attr('class', 'icon-pause');
+    } else {
+        $("#toggle-icon").attr('class', 'icon-play');
+    }
+};
 
 var dispathcer = {
     "update": update_playlist,
+    "toggle": update_playstatus,
 };
 
 var updater = {
@@ -94,6 +108,8 @@ var updater = {
         }
 	updater.socket.onmessage = function(event) {
             msg = JSON.parse(event.data)
+            console.log("Got msg:")
+            console.log(msg)
             dispathcer[msg.command](msg.arg)
 
 	}
