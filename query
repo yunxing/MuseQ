@@ -1,1 +1,0 @@
-curl --referer "http://www.xiami.com" -o muse.mp3  -A "Mozilla/5.0" "http://f3.xiami.net/90/323/3720_3720.mp3"
