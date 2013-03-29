@@ -3,8 +3,11 @@
 
 import urllib2
 import urllib
+import logging
 from opener import Opener
 from bs4 import BeautifulSoup
+from itertools import izip
+
 
 URL = "http://www.xiami.com"
 url_pattern = { "song": "http://www.xiami.com/search/song?", 
@@ -18,21 +21,18 @@ def url_open(category, name):
     return BeautifulSoup(Opener.Instance().open(url))
 
 def find_song_link(soup):
-    lst = ["song_url"]
+    yield "song_url"
     for link in soup.find_all('td', "song_name"):
         link = link.find('a', target="_blank")
-        link = URL + link.get('href')
-        lst.append(link)
-    return lst
+        yield (URL + link.get('href'))
         
 # category = "song_name", "song_artist", "song_album"
 def find_song_info(soup, category):
-    lst = [category]
+    yield category
     for link in soup.find_all('td', class_=category):
         link = link.find('a', target="_blank")
         link = link.get('title')
-        lst.append(link)
-    return lst
+        yield link
 
 class XiamiParser(object):
     @staticmethod
@@ -42,8 +42,8 @@ class XiamiParser(object):
         song_artist = find_song_info(soup, "song_artist")
         song_album = find_song_info(soup, "song_album")
         song_url = find_song_link(soup)
-        zipped = zip(song_name, song_artist, song_album)
-        return zip(zip(zipped, song_url), song_url)
+        zipped = izip(song_name, song_artist, song_album)
+        return izip(izip(zipped, song_url), song_url)
 
     @staticmethod
     def search_album(name):
@@ -55,7 +55,7 @@ class XiamiParser(object):
             artist_lst.append(link.find('p', class_='name').find('a', class_='singer').get('title'))
             url_lst.append(URL + link.find('p', class_='name').find('a').get('href'))
             title_lst.append(link.find('p', class_='name').find('a').get('title'))
-        return zip(zip(title_lst, artist_lst), url_lst)
+        return izip(izip(title_lst, artist_lst), url_lst)
 
     @staticmethod
     def search_artist(name):
@@ -65,12 +65,15 @@ class XiamiParser(object):
         for link in soup.find_all('div', class_='artist_item100_block'):
             url_lst.append(URL + link.find('p', class_='buddy').find('a').get('href'))
             artist_lst.append(link.find('p', class_='name').find('span').get_text())
-        return zip(artist_lst, url_lst)
+        return izip(artist_lst, url_lst)
    
 def main():
     name = 'kelly'
     print name
-    print XiamiParser.search_album(name)
+    for item in XiamiParser.search_artist(name):
+        print item
+    
+    
     
 if __name__ == "__main__":
     main()
