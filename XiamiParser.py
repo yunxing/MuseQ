@@ -17,7 +17,6 @@ url_pattern = { "song": "http://www.xiami.com/search/song?",
 def url_open(category, name):
     p = {'key':name}
     url = url_pattern[category] + urllib.urlencode(p)
-    print url
     return BeautifulSoup(Opener.Instance().open(url))
 
 def find_song_link(soup):
