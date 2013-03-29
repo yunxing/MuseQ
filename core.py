@@ -46,11 +46,10 @@ class _const:
 
 import threading
 def run_in_thread(fn):
-    def run(*k, **kw):
-        t = threading.Thread(target=fn, args=k, kwargs=kw)
-        t.daemon = True
-        t.start()
-    return run
+    t = threading.Thread(target=fn)
+    t.daemon = True
+    t.start()
+    return t
 
 import sys
 sys.modules["const"]=_const()

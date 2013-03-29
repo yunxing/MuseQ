@@ -11,8 +11,9 @@ import os
 import config
 import const
 import sys
+import itertools
 from threading import Event
-
+from core import run_in_thread
 
 class Song(object):
     def __init__(self):
@@ -26,6 +27,9 @@ class Song(object):
 
     def get_is_pause():
         return self.is_pause
+
+    def started_ready(self):
+        return True
 
     def get_title(self):
         return self.title
@@ -129,7 +133,9 @@ class SongInProgress(Song):
             audiofile.tag.title = self.title
             audiofile.tag.save(self.file_path)
 
-    @core.run_in_thread
+    def started_ready(self):
+        return self.download_started
+
     def get_ready(self):
         if not self.download_started:
             self.download_started = True
@@ -143,7 +149,7 @@ class SongInProgress(Song):
         logging.info("starting play %s",
                      self.file_name)
         self.is_current = True
-        self.get_ready()
+        run_in_thread(self.get_ready)
         if not self.ready:
             logging.debug("started waiting...")
             self.event_wait.wait()
@@ -156,6 +162,43 @@ class SongInProgress(Song):
             self.ready = True
             self.event_wait.set()
 
+class Proactive_downloader(object):
+    def __init__(self, playlist):
+        self.playlist = playlist
+        self.download_id = 0
+        self.event_stop = Event()
+        self.event_stop.clear()
+
+    def playlist_changed(self):
+        self.event_stop.set()
+
+    def playstatus_changed(self):
+        # don't care
+        pass
+
+    def start(self):
+        while True:
+            logging.debug("downloader sleep")
+            self.event_stop.wait()
+            logging.debug("downloader wakeup")
+            if self.playlist.is_empty():
+                self.event_stop.clear()
+                continue
+
+            if all(x.started_ready() for x in self.playlist.playlist):
+                self.event_stop.clear()
+                continue
+
+            start_id = self.playlist.change_id(self.playlist.current + 1)
+            chained_list = itertools.chain(self.playlist.playlist[start_id:],
+                                           self.playlist.playlist[:start_id])
+            logging.debug("start proactively downloading")
+            for song in chained_list:
+                if song.started_ready():
+                    continue
+                logging.info("proactively downloading song %s " % song)
+                t = run_in_thread(song.get_ready)
+                t.join()
 
 class Playlist(object):
     def __init__(self):
@@ -172,6 +215,12 @@ class Playlist(object):
         self.is_playing = Event()
         self.observers = set([])
 
+    def is_empty(self):
+        return self.playlist == []
+
+    def get_song_by_id(self, id):
+        return self.playlist[id % len(self.playlist)]
+
     def get_current_song(self):
         return self.playlist[self.current]
 
@@ -183,14 +232,15 @@ class Playlist(object):
         for obj in self.observers:
             obj.playstatus_changed()
 
-    def change_current(self, new_current):
-        self.current = new_current
+    def change_id(self, id):
         if self.playlist:
-            self.current = self.current % len(self.playlist)
+            return id % len(self.playlist)
         else:
-            self.current = 0
+            return 0
 
-    @core.run_in_thread
+    def change_current(self, new_current):
+        self.current = self.change_id(new_current)
+
     def start(self):
         while True:
             self.is_playing.wait()
@@ -291,6 +341,8 @@ class MuseQ(object):
         self.fn_progress = fn_progress
         self.fn_complete = fn_complete
         self.playlist = Playlist()
+        self.downloader = Proactive_downloader(self.playlist)
+        self.playlist.observers.add(self.downloader)
 
     def get_playlist(self):
         return self.playlist.to_list()
@@ -299,7 +351,9 @@ class MuseQ(object):
         return self.playlist.playstatus()
 
     def start(self):
-        self.playlist.start()
+        run_in_thread(self.playlist.start)
+        run_in_thread(self.downloader.start)
+
 
     def register_updates(self, obj):
         self.playlist.observers.add(obj)
