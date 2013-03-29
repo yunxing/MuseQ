@@ -70,6 +70,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         parsed = tornado.escape.json_decode(message)
         if parsed["command"] == "addurl":
             SocketHandler.machine.play(parsed["url"])
+        elif parsed["command"] == "select":
+            SocketHandler.machine.select(int(parsed["id"]))
         elif parsed["command"] == "next":
             SocketHandler.machine.next()
         elif parsed["command"] == "stop":

@@ -67,7 +67,7 @@ function update_playlist(playlist) {
     playlist.forEach(function(item){
         class_str = (item.playing)? "class='success'" : "";
 
-        item_str = "<tr {0}> \
+        item_str = "<tr {0} id='song{1}'> \
           <td>{1}</td> \
           <td>{2}</td> \
           <td>{3}</td> \
@@ -77,8 +77,10 @@ function update_playlist(playlist) {
                       item.title,
                       item.artist,
                       item.album);
-        console.log(item_str);
         $("#playlist").append(item_str);
+        $("#song" + item.id).click(function(){
+            newMessage({"command":"select", "id":item.id});
+        });
     });
 
 };

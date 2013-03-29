@@ -195,8 +195,12 @@ class Playlist(object):
         while True:
             self.is_playing.wait()
             current = self.current
+            logging.debug("before play: current %d and self.current %d" % (current,
+                                                                     self.current))
             song = self.get_current_song()
             song.start(self.player)
+            logging.debug("after play: current %d and self.current %d" % (current,
+                                                              self.current))
             if current == self.current:
                 self.change_current(self.current + 1)
             self.playlist_changed()
@@ -256,6 +260,17 @@ class Playlist(object):
     def volumedown(self):
         vol = self.client_action.status()["volume"]
         self.set_volum(int(vol) - 10)
+
+    def select(self, id):
+        if id >= len(self.playlist):
+            return
+        if self.current == id:
+            return
+        logging.info("jumping to song id %d" % id)
+        self.get_current_song().stop()
+        self.current = id
+        self.client_action.stop()
+        self.playstatus_changed()
 
     def toggle(self):
         try:
@@ -317,6 +332,9 @@ class MuseQ(object):
 
     def toggle(self):
         self.playlist.toggle()
+
+    def select(self, id):
+        self.playlist.select(id)
 
     def play(self, url):
         decoded_urls = dispatch_url(url)
