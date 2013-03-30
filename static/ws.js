@@ -113,7 +113,6 @@ var updater = {
             console.log("Got msg:")
             console.log(msg)
             dispathcer[msg.command](msg.arg)
-
 	}
     },
 };
