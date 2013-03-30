@@ -139,11 +139,17 @@ class SongInProgress(Song):
     def get_ready(self):
         if not self.download_started:
             self.download_started = True
-            progress = Opener.Instance().urlretrive(self.url, self.file_path)
-            for (download, total) in progress:
-                self.check_and_play(download, total)
-            logging.debug("download complete: %s" % self.file_name)
-            self.write_tag()
+            try:
+                progress = Opener.Instance().urlretrive(self.url, self.file_path)
+                for (download, total) in progress:
+                    self.check_and_play(download, total)
+                logging.debug("download complete: %s" % self.file_name)
+                self.write_tag()
+            except:
+                self.ready = False
+                self.event_wait.clear()
+                self.download_started = False
+                os.unlink(self.file_path)
 
     def start(self, player):
         logging.info("starting play %s",
