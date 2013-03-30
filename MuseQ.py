@@ -12,7 +12,8 @@ import config
 import const
 import sys
 import itertools
-from threading import Event
+import XiamiParser
+from threading import Event, Thread
 from core import run_in_thread
 
 class Song(object):
@@ -395,6 +396,16 @@ class MuseQ(object):
 
     def select(self, id):
         self.playlist.select(id)
+
+    def search(self, query, cb):
+        ret = {}
+        def f1(): ret["songs"] = list(XiamiParser.search_song(query))
+        def f2(): ret["albums"] = list(XiamiParser.search_album(query))
+        t1 = core.run_in_thread(f1)
+        t2 = core.run_in_thread(f2)
+        t1.join()
+        t2.join()
+        cb(ret)
 
     def play(self, url):
         decoded_urls = dispatch_url(url)

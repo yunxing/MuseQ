@@ -54,6 +54,15 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         except:
             logging.error("Error sending message", exc_info=True)
 
+    def query_result_got(self, result):
+        msg = {}
+        msg["command"] = "result"
+        msg["arg"] = result
+        try:
+            self.write_message(msg)
+        except:
+            logging.error("Error sending message", exc_info=True)
+
     def allow_draft76(self):
         return True
 
@@ -82,7 +91,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
             SocketHandler.machine.volumedown()
         elif parsed["command"] == "toggle":
             SocketHandler.machine.toggle()
-
+        elif parsed["command"] == "search":
+            SocketHandler.machine.search(parsed["query"], self.query_result_got)
 
 def main():
     tornado.options.parse_command_line()
