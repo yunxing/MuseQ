@@ -57,9 +57,29 @@ function Search_modal(div_id) {
         });
     }
 
+    var create_album_table = function(result){
+        var album_table = new Table_creator();
+        album_table.init("Title", "Artist");
+        result.forEach(function(album, index) {
+            row_str = "<tr id='album-result" + index + "'> \
+              <td>" + album.title + "</td> \
+              <td>" + album.artist + "</td> \
+            </tr>\n";
+            album_table.insert_row(row_str);
+        });
+        $("#album-tab").html(album_table.finish());
+
+        result.forEach(function(album, index) {
+            $("#album-result" + index).click(function(){
+                newMessage({"command":"addurl", "url":album.url});
+                $('#search-modal').modal('hide');
+            });
+        });
+    }
+
     this.update = function(result) {
         create_song_table(result.songs);
-        //create_album_table(result.albums);
+        create_album_table(result.albums);
     }
 };
 
