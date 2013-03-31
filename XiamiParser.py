@@ -45,7 +45,7 @@ def search_song(name):
 def search_album(name):
     soup = url_open("album", name)
     for link in soup.find_all('div', class_='album_item100_block'):
-        artist = link.find('p', class_='name').find('a').get('title')
+        artist = link.find('p', class_='name').find('a', class_="singer").get('title')
         url = URL + link.find('p', class_='name').find('a').get('href')
         title = link.find('p', class_='name').find('a').get('title')
         yield {"title": title,
