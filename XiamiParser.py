@@ -18,7 +18,7 @@ def url_open(category, name):
     p = {'key':name.encode('utf-8')}
     url = url_pattern[category] + urllib.urlencode(p)
     html = Opener.Instance().open(url)
-    return BeautifulSoup(html)
+    return BeautifulSoup(html, "html5lib")
 
 def find_song_link(soup):
     for link in soup.find_all('td', "song_name"):
@@ -63,7 +63,7 @@ def search_artist(name):
     return izip(izip(artist_lst), url_lst)
 
 def main():
-    name = 'native'
+    name = u'小时候'
     print name
     for item in search_song(name):
         print item
