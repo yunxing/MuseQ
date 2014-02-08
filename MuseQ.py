@@ -22,7 +22,6 @@ class Song(object):
         self.is_current = False
         self.ready = True
         self.is_pause = False
-
     def toggle(self):
         self.is_pause = not self.is_pause
 
@@ -144,7 +143,7 @@ class SongInProgress(Song):
                 progress = Opener.Instance().urlretrive(self.url, self.file_path)
                 for (download, total) in progress:
                     self.check_and_play(download, total)
-                logging.debug("download complete: %s" % self.file_name)
+                logging.info("download complete: %s" % self.file_name)
                 self.write_tag()
             except:
                 self.ready = False
@@ -156,6 +155,7 @@ class SongInProgress(Song):
         logging.info("starting play %s",
                      self.file_name)
         self.is_current = True
+        # dispatch a worker to download
         run_in_thread(self.get_ready)
         if not self.ready:
             logging.debug("started waiting...")
@@ -204,6 +204,7 @@ class Proactive_downloader(object):
                 if song.started_ready():
                     continue
                 logging.info("proactively downloading song %s " % song)
+                # Start a worker to download, then wait for finish
                 t = run_in_thread(song.get_ready)
                 t.join()
 
@@ -224,9 +225,6 @@ class Playlist(object):
 
     def is_empty(self):
         return self.playlist == []
-
-    def get_song_by_id(self, id):
-        return self.playlist[id % len(self.playlist)]
 
     def get_current_song(self):
         return self.playlist[self.current]
@@ -342,11 +340,8 @@ class Playlist(object):
         self.playstatus_changed()
 
 class MuseQ(object):
-    def __init__(self, path, db_name, fn_progress=None, fn_complete=None):
+    def __init__(self, path):
         self.path = path
-        self.db = MusicDB(path, db_name)
-        self.fn_progress = fn_progress
-        self.fn_complete = fn_complete
         self.playlist = Playlist()
         self.downloader = Proactive_downloader(self.playlist)
         self.playlist.observers.add(self.downloader)

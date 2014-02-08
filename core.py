@@ -55,4 +55,4 @@ import sys
 sys.modules["const"]=_const()
 
 def get_file_suffix(url):
-    return url.split(".")[-1]
+    return url.split(".")[-1].split("?")[0]

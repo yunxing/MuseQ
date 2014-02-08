@@ -11,7 +11,7 @@ from MuseQ import MuseQ
 
 from tornado.options import define, options
 
-define("port", default=8888, help="run on the given port", type=int)
+define("port", default=8080, help="run on the given port", type=int)
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -22,7 +22,7 @@ class Application(tornado.web.Application):
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
-            debug=True,
+            # debug=True,
             )
         tornado.web.Application.__init__(self, handlers, **settings)
 
@@ -31,7 +31,7 @@ class MainHandler(tornado.web.RequestHandler):
         self.render("index.html")
 
 class SocketHandler(tornado.websocket.WebSocketHandler):
-    machine = MuseQ(const.PATH, const.DB_NAME)
+    machine = MuseQ(const.PATH)
     machine.start()
 
     def playlist_changed(self):
@@ -92,7 +92,8 @@ class SocketHandler(tornado.websocket.WebSocketHandler):
         elif parsed["command"] == "toggle":
             SocketHandler.machine.toggle()
         elif parsed["command"] == "search":
-            SocketHandler.machine.search(parsed["query"], self.query_result_got)
+            SocketHandler.machine.search(parsed["query"],
+                                         self.query_result_got)
 
 def main():
     tornado.options.parse_command_line()
